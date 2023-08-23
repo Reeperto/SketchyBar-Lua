@@ -2,18 +2,26 @@
 #include "event.h"
 #include "misc/helpers.h"
 
-#define DISPLAY_EVENT_HANDLER(name) void name(uint32_t did, CGDisplayChangeSummaryFlags flags, void *context)
+#define DISPLAY_EVENT_HANDLER(name)                                            \
+    void name(uint32_t did, CGDisplayChangeSummaryFlags flags, void *context)
 typedef DISPLAY_EVENT_HANDLER(display_callback);
 
-extern CGError DisplayServicesRegisterForBrightnessChangeNotifications(uint32_t did, uint32_t passthrough, void* callback);
-extern CGError DisplayServicesRegisterForAmbientLightCompensationNotifications(uint32_t did, uint32_t passthrough, void* callback);
+extern CGError DisplayServicesRegisterForBrightnessChangeNotifications(
+    uint32_t did, uint32_t passthrough, void *callback);
+extern CGError DisplayServicesRegisterForAmbientLightCompensationNotifications(
+    uint32_t did, uint32_t passthrough, void *callback);
 
-extern CGError DisplayServicesUnregisterForBrightnessChangeNotifications(uint32_t did, uint32_t passthrough);
-extern CGError DisplayServicesUnregisterForAmbientLightCompensationNotifications(uint32_t did, uint32_t passthrough);
+extern CGError
+DisplayServicesUnregisterForBrightnessChangeNotifications(uint32_t did,
+                                                          uint32_t passthrough);
+extern CGError
+DisplayServicesUnregisterForAmbientLightCompensationNotifications(
+    uint32_t did, uint32_t passthrough);
 
-extern CGError DisplayServicesGetBrightness(uint32_t did, float* brightness);
+extern CGError DisplayServicesGetBrightness(uint32_t did, float *brightness);
 extern CGError DisplayServicesCanChangeBrightness(uint32_t did);
-extern CGError DisplayServicesAmbientLightCompensationEnabled(uint32_t did, bool* out);
+extern CGError DisplayServicesAmbientLightCompensationEnabled(uint32_t did,
+                                                              bool *out);
 
 extern CFUUIDRef CGDisplayCreateUUIDFromDisplayID(uint32_t did);
 extern CFArrayRef SLSCopyManagedDisplays(int cid);
@@ -25,7 +33,8 @@ extern CFStringRef SLSCopyActiveMenuBarDisplayIdentifier(int cid);
 extern CGError SLSGetMenuBarAutohideEnabled(int cid, int *enabled);
 extern CGError SLSGetRevealedMenuBarBounds(CGRect *rect, int cid, uint64_t sid);
 extern CFStringRef SLSCopyBestManagedDisplayForPoint(int cid, CGPoint point);
-extern CGError SLSSetMenuBarVisibilityOverrideOnDisplay(int cid, int did, bool override);
+extern CGError SLSSetMenuBarVisibilityOverrideOnDisplay(int cid, int did,
+                                                        bool override);
 extern CGError SLSSetMenuBarAutohideEnabled(int cid, bool enabled);
 
 uint32_t display_main_display_id(void);
