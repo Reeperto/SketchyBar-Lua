@@ -51,8 +51,11 @@ void bar_item_init(struct bar_item *bar_item, struct bar_item *default_item) {
 
     bar_item->name = NULL;
 
-    uuid_clear(bar_item->script);
-    uuid_clear(bar_item->click_script);
+    bar_item->script = NULL;
+    bar_item->click_script = NULL;
+
+    uuid_clear(bar_item->lua_script);
+    uuid_clear(bar_item->lua_click_script);
 
     bar_item->group = NULL;
     bar_item->parent = NULL;
@@ -134,7 +137,8 @@ bool bar_item_update(struct bar_item *bar_item, char *sender, bool forced,
     if (((scheduled_update_needed || sender) && should_update) || forced) {
         bar_item->counter = 0;
 
-        if (bar_item->event_port) {
+        if ((bar_item->script && strlen(bar_item->script) > 0) ||
+            bar_item->event_port) {
             if (!env_vars)
                 env_vars = &bar_item->signal_args.env_vars;
             else {
@@ -158,18 +162,8 @@ bool bar_item_update(struct bar_item *bar_item, char *sender, bool forced,
                              string_copy(forced ? "forced" : "routine"));
         }
         // Script Update
-        if (!uuid_is_null(bar_item->script)) {
-            lua_pushlightuserdata(L, bar_item->script);
-            lua_rawget(L, LUA_REGISTRYINDEX);
-
-            // TODO: Consider if this is the best approach
-            env_vars_to_lua_table(L, env_vars);
-
-            if (lua_pcall(L, 1, 0, 0)) {
-                printf("Error executing script for item '%s':\n\n%s\n",
-                       bar_item->name, lua_tostring(L, -1));
-            }
-            // fork_exec(bar_item->script, env_vars);
+        if (bar_item->script && strlen(bar_item->script) > 0) {
+            fork_exec(bar_item->script, env_vars);
         }
 
         // Mach events
@@ -182,6 +176,21 @@ bool bar_item_update(struct bar_item *bar_item, char *sender, bool forced,
             free(message);
         }
     }
+
+    // Script Update
+    if (!uuid_is_null(bar_item->lua_script)) {
+        lua_pushlightuserdata(L, bar_item->lua_script);
+        lua_rawget(L, LUA_REGISTRYINDEX);
+
+        // TODO: Consider if this is the best approach
+        env_vars_to_lua_table(L, env_vars);
+
+        if (lua_pcall(L, 1, 0, 0)) {
+            printf("Error executing script for item '%s':\n\n%s\n",
+                   bar_item->name, lua_tostring(L, -1));
+        }
+    }
+
     return false;
 }
 
@@ -253,7 +262,7 @@ void bar_item_on_click(struct bar_item *bar_item, uint32_t type,
         }
     }
 
-    if (!uuid_is_null(bar_item->click_script)) {
+    if (bar_item->click_script && strlen(bar_item->click_script) > 0) {
         for (int i = 0; i < bar_item->signal_args.env_vars.count; i++) {
             env_vars_set(
                 &env_vars,
@@ -261,7 +270,18 @@ void bar_item_on_click(struct bar_item *bar_item, uint32_t type,
                 string_copy(bar_item->signal_args.env_vars.vars[i]->value));
         }
 
-        lua_pushlightuserdata(L, bar_item->click_script);
+        fork_exec(bar_item->click_script, &env_vars);
+    }
+
+    if (!uuid_is_null(bar_item->lua_click_script)) {
+        for (int i = 0; i < bar_item->signal_args.env_vars.count; i++) {
+            env_vars_set(
+                &env_vars,
+                string_copy(bar_item->signal_args.env_vars.vars[i]->key),
+                string_copy(bar_item->signal_args.env_vars.vars[i]->value));
+        }
+
+        lua_pushlightuserdata(L, bar_item->lua_click_script);
         lua_rawget(L, LUA_REGISTRYINDEX);
 
         // TODO: Consider if this is the best approach
@@ -329,28 +349,36 @@ static bool bar_item_set_drawing(struct bar_item *bar_item, bool state) {
     return true;
 }
 
-void bar_item_set_script(struct bar_item *bar_item, uuid_t script) {
-    if (uuid_is_null(script))
+static void bar_item_set_script(struct bar_item *bar_item, char *script) {
+    if (!script)
         return;
 
-    if (!uuid_is_null(bar_item->script) &&
-        uuid_compare(bar_item->script, script) == 0) {
+    if (bar_item->script && strcmp(bar_item->script, script) == 0) {
+        free(script);
         return;
     }
 
-    uuid_copy(bar_item->script, script);
+    if (script != bar_item->script && bar_item->script)
+        free(bar_item->script);
+
+    char *path = resolve_path(script);
+    bar_item->script = path;
 }
 
-void bar_item_set_click_script(struct bar_item *bar_item, uuid_t script) {
-    if (uuid_is_null(script))
+static void bar_item_set_click_script(struct bar_item *bar_item, char *script) {
+    if (!script)
         return;
 
-    if (!uuid_is_null(bar_item->click_script) &&
-        uuid_compare(bar_item->click_script, script) == 0) {
+    if (bar_item->click_script && strcmp(bar_item->click_script, script) == 0) {
+        free(script);
         return;
     }
 
-    uuid_copy(bar_item->click_script, script);
+    if (script != bar_item->click_script && bar_item->click_script)
+        free(bar_item->click_script);
+
+    char *path = resolve_path(script);
+    bar_item->click_script = path;
 }
 
 static bool bar_item_set_yoffset(struct bar_item *bar_item, int offset) {
@@ -433,12 +461,12 @@ bool bar_item_set_type(struct bar_item *bar_item, char *type) {
     if (bar_item->type == BAR_COMPONENT_SPACE) {
         // TODO: Resolve this
 
-        // if (!bar_item->script) {
-        //   bar_item_set_script(
-        //       bar_item,
-        //       string_copy("sketchybar -m --set $NAME
-        //       icon.highlight=$SELECTED"));
-        // }
+        if (!bar_item->script) {
+            bar_item_set_script(
+                bar_item,
+                string_copy(
+                    "sketchybar -m --set $NAME icon.highlight=$SELECTED"));
+        }
 
         bar_item->update_mask |= UPDATE_SPACE_CHANGE;
         bar_item->updates = false;
@@ -735,8 +763,11 @@ void bar_item_change_space(struct bar_item *bar_item, uint64_t dsid,
 }
 
 static void bar_item_clear_pointers(struct bar_item *bar_item) {
-    uuid_clear(bar_item->script);
-    uuid_clear(bar_item->click_script);
+    uuid_clear(bar_item->lua_script);
+    uuid_clear(bar_item->lua_click_script);
+
+    bar_item->script = NULL;
+    bar_item->click_script = NULL;
 
     bar_item->name = NULL;
     bar_item->group = NULL;
@@ -760,27 +791,28 @@ void bar_item_inherit_from_item(struct bar_item *bar_item,
 
     char *name = bar_item->name;
 
-    uuid_t script;
-    uuid_copy(script, bar_item->script);
-
-    uuid_t click_script;
-    uuid_copy(click_script, bar_item->click_script);
-
     memcpy(bar_item, ancestor, sizeof(struct bar_item));
     bar_item_clear_pointers(bar_item);
 
+    uuid_t lua_script;
+    uuid_copy(lua_script, bar_item->lua_script);
+
+    uuid_t lua_click_script;
+    uuid_copy(lua_click_script, bar_item->lua_click_script);
+
     bar_item->name = name;
-    uuid_copy(bar_item->script, script);
-    uuid_copy(bar_item->click_script, click_script);
+    uuid_copy(bar_item->lua_script, lua_script);
+    uuid_copy(bar_item->lua_click_script, lua_click_script);
 
     text_copy(&bar_item->icon, &ancestor->icon);
     text_copy(&bar_item->label, &ancestor->label);
     text_copy(&bar_item->slider.knob, &ancestor->slider.knob);
 
-    if (!uuid_is_null(ancestor->script))
-        bar_item_set_script(bar_item, ancestor->script);
-    if (!uuid_is_null(ancestor->click_script))
-        bar_item_set_click_script(bar_item, ancestor->click_script);
+    if (ancestor->script)
+        bar_item_set_script(bar_item, string_copy(ancestor->script));
+    if (ancestor->click_script)
+        bar_item_set_click_script(bar_item,
+                                  string_copy(ancestor->click_script));
 
     image_copy(&bar_item->background.image,
                ancestor->background.image.image_ref);
@@ -811,18 +843,26 @@ void bar_item_destroy(struct bar_item *bar_item, bool free_memory,
         free(bar_item->name);
     }
 
-    if (!uuid_is_null(bar_item->script)) {
+    if (bar_item->script) {
+        free(bar_item->script);
+    }
+
+    if (bar_item->click_script) {
+        free(bar_item->click_script);
+    }
+
+    if (!uuid_is_null(bar_item->lua_script)) {
         // TODO: Could cause major issues if an item copies the script from
         // another and either item frees the function from the registry
-        lua_pushlightuserdata(L, bar_item->script);
+        lua_pushlightuserdata(L, bar_item->lua_script);
         lua_pushnil(L);
         lua_rawset(L, LUA_REGISTRYINDEX);
     }
 
-    if (!uuid_is_null(bar_item->click_script)) {
+    if (!uuid_is_null(bar_item->lua_click_script)) {
         // TODO: Could cause major issues if an item copies the script from
         // another and either item frees the function from the registry
-        lua_pushlightuserdata(L, bar_item->click_script);
+        lua_pushlightuserdata(L, bar_item->lua_click_script);
         lua_pushnil(L);
         lua_rawset(L, LUA_REGISTRYINDEX);
     }
@@ -940,23 +980,33 @@ void bar_item_serialize(struct bar_item *bar_item, FILE *rsp) {
     // TODO: May not be the most efficient
     char buf[100];
 
-    uuid_unparse(bar_item->script, buf);
-    char *escaped_script = escape_string(buf);
-    uuid_unparse(bar_item->click_script, buf);
-    char *escaped_click_script = escape_string(buf);
+    uuid_unparse(bar_item->lua_script, buf);
+    char *lua_escaped_script = escape_string(buf);
+    uuid_unparse(bar_item->lua_click_script, buf);
+    char *lua_escaped_click_script = escape_string(buf);
+
+    char *escaped_script = escape_string(bar_item->script);
+    char *escaped_click_script = escape_string(bar_item->click_script);
 
     fprintf(rsp,
             "\t\"scripting\": {\n"
             "\t\t\"script\": \"%s\",\n"
             "\t\t\"click_script\": \"%s\",\n"
+            "\t\t\"lua_script\": \"%s\",\n"
+            "\t\t\"lua_click_script\": \"%s\",\n"
             "\t\t\"update_freq\": %u,\n"
             "\t\t\"update_mask\": %llu,\n"
             "\t\t\"updates\": \"%s\"\n\t},\n",
-            escaped_script, escaped_click_script, bar_item->update_frequency,
+            escaped_script, escaped_click_script, lua_escaped_script,
+            lua_escaped_click_script, bar_item->update_frequency,
             bar_item->update_mask,
             bar_item->updates_only_when_shown ? "when_shown"
                                               : format_bool(bar_item->updates));
 
+    if (lua_escaped_script)
+        free(lua_escaped_script);
+    if (lua_escaped_click_script)
+        free(lua_escaped_click_script);
     if (escaped_script)
         free(escaped_script);
     if (escaped_click_script)
@@ -1112,15 +1162,12 @@ void bar_item_parse_set_message(struct bar_item *bar_item, char *message,
                                 bar_item->background.padding_right)),
                     token_to_int(token));
         }
-    }
-    // else if (token_equals(property, PROPERTY_SCRIPT)) {
-    //   bar_item_set_script(bar_item, token_to_string(get_token(&message)));
-    // }
-    // else if (token_equals(property, PROPERTY_CLICK_SCRIPT)) {
-    //     bar_item_set_click_script(bar_item,
-    //                               token_to_string(get_token(&message)));
-    // }
-    else if (token_equals(property, PROPERTY_UPDATE_FREQ)) {
+    } else if (token_equals(property, PROPERTY_SCRIPT)) {
+        bar_item_set_script(bar_item, token_to_string(get_token(&message)));
+    } else if (token_equals(property, PROPERTY_CLICK_SCRIPT)) {
+        bar_item_set_click_script(bar_item,
+                                  token_to_string(get_token(&message)));
+    } else if (token_equals(property, PROPERTY_UPDATE_FREQ)) {
         bar_item->update_frequency = token_to_uint32t(get_token(&message));
     } else if (token_equals(property, PROPERTY_POSITION)) {
         struct token position = get_token(&message);

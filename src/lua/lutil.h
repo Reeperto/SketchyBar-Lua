@@ -45,9 +45,9 @@ LFUN(luautil_set_bar_script) {
     uuid_generate(uuid);
 
     // bar_item_set_script(item, uuid);
-    uuid_copy(item->script, uuid);
+    uuid_copy(item->lua_script, uuid);
 
-    lua_pushlightuserdata(L, item->script);
+    lua_pushlightuserdata(L, item->lua_script);
     lua_insert(L, -2);
 
     lua_rawset(L, LUA_REGISTRYINDEX);
@@ -65,9 +65,9 @@ LFUN(luautil_set_bar_click_script) {
     uuid_t uuid;
     uuid_generate(uuid);
 
-    uuid_copy(item->click_script, uuid);
+    uuid_copy(item->lua_click_script, uuid);
 
-    lua_pushlightuserdata(L, item->click_script);
+    lua_pushlightuserdata(L, item->lua_click_script);
     lua_insert(L, -2);
 
     lua_rawset(L, LUA_REGISTRYINDEX);

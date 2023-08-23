@@ -50,8 +50,11 @@ struct bar_item {
     uint32_t associated_space;
     uint32_t update_frequency;
 
-    uuid_t script;
-    uuid_t click_script;
+    char *script;
+    char *click_script;
+
+    uuid_t lua_script;
+    uuid_t lua_click_script;
 
     struct signal_args signal_args;
 
@@ -131,9 +134,6 @@ void bar_item_reset_associated_bar(struct bar_item *bar_item);
 bool bar_item_set_name(struct bar_item *bar_item, char *name);
 bool bar_item_set_type(struct bar_item *bar_item, char *type);
 bool bar_item_set_position(struct bar_item *bar_item, char *position);
-
-void bar_item_set_script(struct bar_item *bar_item, uuid_t script);
-void bar_item_set_click_script(struct bar_item *bar_item, uuid_t script);
 
 uint32_t bar_item_get_length(struct bar_item *bar_item, bool ignore_override);
 uint32_t bar_item_get_height(struct bar_item *bar_item);
