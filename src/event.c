@@ -349,6 +349,7 @@ static callback_type *event_handler[] = {
     [HOTLOAD] = event_hotload,
 };
 
+extern pthread_mutex_t g_event_mutex;
 void event_post(struct event *event) {
     event_handler[event->type](event->context);
     windows_unfreeze();

@@ -1,4 +1,5 @@
 #pragma once
+#include <CoreVideo/CVDisplayLink.h>
 #include "misc/helpers.h"
 
 extern struct bar_manager g_bar_manager;

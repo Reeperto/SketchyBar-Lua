@@ -27,8 +27,8 @@
 #define HELP_OPT_SHRT "-h"
 
 #define MAJOR 2
-#define MINOR 15
-#define PATCH 2
+#define MINOR 16
+#define PATCH 0
 
 extern int SLSMainConnectionID(void);
 extern CGError SLSRegisterNotifyProc(void *callback, uint32_t event,
@@ -44,6 +44,7 @@ extern CGError SLSCoalesceEventsInMask(uint32_t cid, int64_t mask);
 
 int g_connection;
 CFTypeRef g_transaction;
+pthread_mutex_t g_event_mutex;
 
 struct bar_manager g_bar_manager;
 struct mach_server g_mach_server;

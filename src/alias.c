@@ -172,107 +172,36 @@ static bool alias_update_image(struct alias *alias, bool forced) {
     bool disabled = false;
     CGImageRef image_ref = window_capture(&alias->window, &disabled);
 
-    if (!image_ref) {
-        if (!disabled) {
-            alias->window.id = 0;
-            image_destroy(&alias->image);
-        }
-        return false;
+void alias_destroy(struct alias* alias) {
+  image_destroy(&alias->image);
+  if (alias->name) free(alias->name);
+  if (alias->owner) free(alias->owner);
+  alias->name = NULL;
+  alias->owner = NULL;
+}
+
+void alias_calculate_bounds(struct alias* alias, uint32_t x, uint32_t y) {
+  image_calculate_bounds(&alias->image, x, y);
+}
+
+bool alias_parse_sub_domain(struct alias* alias, FILE* rsp, struct token property, char* message) {
+  struct key_value_pair key_value_pair = get_key_value_pair(property.text,'.');
+  if (key_value_pair.key && key_value_pair.value) {
+    struct token subdom = { key_value_pair.key, strlen(key_value_pair.key) };
+    struct token entry = { key_value_pair.value, strlen(key_value_pair.value)};
+    if (token_equals(subdom, SUB_DOMAIN_SHADOW))
+      return shadow_parse_sub_domain(&alias->image.shadow,
+                                     rsp,
+                                     entry,
+                                     message              );
+    else if (token_equals(subdom, SUB_DOMAIN_COLOR)) {
+      bool changed = !alias->color_override;
+      alias->color_override = true;
+      return color_parse_sub_domain(&alias->color, rsp, entry, message)
+            || changed;
     }
-
-    return image_set_image(&alias->image, image_ref, alias->window.frame,
-                           forced);
-}
-
-void alias_setup(struct alias *alias, char *owner, char *name) {
-    alias->name = name;
-    alias->owner = owner;
-    alias_get_permission(alias);
-    alias_update_image(alias, true);
-}
-
-uint32_t alias_get_length(struct alias *alias) {
-    if (alias->image.image_ref)
-        return alias->image.bounds.size.width;
-    return 0;
-}
-
-uint32_t alias_get_height(struct alias *alias) {
-    if (alias->image.image_ref)
-        return alias->image.bounds.size.height;
-    return 0;
-}
-
-bool alias_update(struct alias *alias, bool forced) {
-    if (alias->update_frequency == 0)
-        return false;
-
-    alias->counter++;
-    if (forced || alias->counter >= alias->update_frequency) {
-        alias->counter = 0;
-        if (alias_update_image(alias, forced)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void alias_draw(struct alias *alias, CGContextRef context) {
-    if (alias->color_override) {
-        CGContextSaveGState(context);
-        image_draw(&alias->image, context);
-        CGContextClipToMask(context, alias->image.bounds,
-                            alias->image.image_ref);
-        CGContextSetRGBFillColor(context, alias->color.r, alias->color.g,
-                                 alias->color.b, alias->color.a);
-
-        CGContextFillRect(context, alias->image.bounds);
-        CGContextRestoreGState(context);
-    } else {
-        image_draw(&alias->image, context);
-    }
-}
-
-void alias_destroy(struct alias *alias) {
-    image_destroy(&alias->image);
-    if (alias->name)
-        free(alias->name);
-    if (alias->owner)
-        free(alias->owner);
-    alias->name = NULL;
-    alias->owner = NULL;
-}
-
-void alias_calculate_bounds(struct alias *alias, uint32_t x, uint32_t y) {
-    image_calculate_bounds(&alias->image, x, y);
-}
-
-bool alias_parse_sub_domain(struct alias *alias, FILE *rsp,
-                            struct token property, char *message) {
-    struct key_value_pair key_value_pair =
-        get_key_value_pair(property.text, '.');
-    if (key_value_pair.key && key_value_pair.value) {
-        struct token subdom = {key_value_pair.key, strlen(key_value_pair.key)};
-        struct token entry = {key_value_pair.value,
-                              strlen(key_value_pair.value)};
-        if (token_equals(subdom, SUB_DOMAIN_SHADOW))
-            return shadow_parse_sub_domain(&alias->image.shadow, rsp, entry,
-                                           message);
-        else {
-            respond(rsp, "[!] Alias: Invalid subdomain '%s'\n", subdom.text);
-        }
-    } else if (token_equals(property, PROPERTY_COLOR)) {
-        color_set_hex(&alias->color, token_to_uint32t(get_token(&message)));
-        alias->color_override = true;
-        return true;
-    } else if (token_equals(property, PROPERTY_SCALE)) {
-        return image_set_scale(&alias->image,
-                               token_to_float(get_token(&message)));
-    } else if (token_equals(property, PROPERTY_UPDATE_FREQ)) {
-        alias->update_frequency = token_to_uint32t(get_token(&message));
-        return false;
-    } else {
-        respond(rsp, "[!] Alias: Invalid property '%s' \n", property.text);
+    else {
+      respond(rsp, "[!] Alias: Invalid subdomain '%s'\n", subdom.text);
     }
     return false;
 }
