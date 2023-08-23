@@ -93,13 +93,18 @@ void dump_lua_stack(lua_State *L) {
 }
 
 void process_animation(lua_State *L, struct bar_manager *bm) {
-    lua_getfield(L, -1, "curve");
-    bm->animator.interp_function = lua_tostring(L, -1)[0];
-    lua_pop(L, 1);
+    if (lua_istable(L, -1)) {
+        lua_getfield(L, -1, "curve");
+        bm->animator.interp_function = lua_tostring(L, -1)[0];
+        lua_pop(L, 1);
 
-    lua_getfield(L, -1, "duration");
-    bm->animator.duration = luaL_checkint(L, -1);
-    lua_pop(L, 1);
+        lua_getfield(L, -1, "duration");
+        bm->animator.duration = luaL_checkint(L, -1);
+        lua_pop(L, 1);
+
+        lua_getfield(L, -1, "value");
+        lua_remove(L, -2);
+    }
 }
 void env_vars_to_lua_table(lua_State *L, struct env_vars *env_vars) {
     if (!env_vars) {

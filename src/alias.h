@@ -23,8 +23,10 @@ struct alias {
     struct image image;
 };
 
-void alias_init(struct alias *alias);
 void alias_setup(struct alias *alias, char *owner, char *name);
+
+void alias_init(struct alias *alias);
+
 uint32_t alias_get_length(struct alias *alias);
 uint32_t alias_get_height(struct alias *alias);
 
@@ -32,8 +34,8 @@ void alias_calculate_bounds(struct alias *alias, uint32_t x, uint32_t y);
 void alias_draw(struct alias *alias, CGContextRef context);
 bool alias_update(struct alias *alias, bool forced);
 void alias_destroy(struct alias *alias);
+bool alias_parse_sub_domain(struct alias *alias, FILE *rsp,
+                            struct token property, char *message);
 
 void print_all_menu_items(FILE *rsp);
 
-bool alias_parse_sub_domain(struct alias *alias, FILE *rsp,
-                            struct token property, char *message);

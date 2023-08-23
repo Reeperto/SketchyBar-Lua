@@ -3,6 +3,7 @@ bin
 todo.md
 notifications.md
 .ccls-cache
+.sconsign.dblie
 .DS_Store
 .ccls
 .cache

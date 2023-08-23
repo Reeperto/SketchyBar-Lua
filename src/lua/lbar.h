@@ -32,15 +32,20 @@ parse_background_key_value_pair(struct background *background, const char *key,
         needs_refresh =
             background_set_enabled(background, lua_toboolean(L, -1));
     } else if (key_is(key, PROPERTY_HEIGHT)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(background_set_height, background,
                 background->bounds.size.height, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_CORNER_RADIUS)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(background_set_corner_radius, background,
                 background->corner_radius, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_BORDER_WIDTH)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(background_set_border_width, background,
                 background->border_width, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_COLOR)) {
+        process_animation(L, &g_bar_manager);
+
         const char *color_string = lua_tostring(L, -1);
 
         if (color_string[0] == '#') {
@@ -48,9 +53,12 @@ parse_background_key_value_pair(struct background *background, const char *key,
         }
 
         uint32_t color = strtoul(color_string, NULL, 16);
+
         ANIMATE_BYTES(background_set_color, background, background->color.hex,
                       color);
     } else if (key_is(key, PROPERTY_BORDER_COLOR)) {
+        process_animation(L, &g_bar_manager);
+
         const char *color_string = lua_tostring(L, -1);
 
         if (color_string[0] == '#') {
@@ -62,12 +70,15 @@ parse_background_key_value_pair(struct background *background, const char *key,
         ANIMATE_BYTES(background_set_border_color, background,
                       background->border_color.hex, color);
     } else if (key_is(key, PROPERTY_PADDING_LEFT)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(background_set_padding_left, background,
                 background->padding_left, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_PADDING_RIGHT)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(background_set_padding_right, background,
                 background->padding_right, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_YOFFSET)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(background_set_yoffset, background, background->y_offset,
                 lua_tointeger(L, -1));
     }
@@ -83,12 +94,15 @@ inline static bool parse_bar_key_value_pair(lua_State *L) {
     const char *key = lua_tostring(L, -2);
 
     if (key_is(key, PROPERTY_MARGIN)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(bar_manager_set_margin, &g_bar_manager, g_bar_manager.margin,
                 lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_YOFFSET)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(bar_manager_set_y_offset, &g_bar_manager,
                 g_bar_manager.background.y_offset, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_BLUR_RADIUS)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(bar_manager_set_background_blur, &g_bar_manager,
                 g_bar_manager.blur_radius, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_FONT_SMOOTHING)) {
@@ -98,9 +112,11 @@ inline static bool parse_bar_key_value_pair(lua_State *L) {
         needs_refresh =
             bar_manager_set_shadow(&g_bar_manager, lua_toboolean(L, -1));
     } else if (key_is(key, PROPERTY_NOTCH_WIDTH)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(bar_manager_set_notch_width, &g_bar_manager,
                 g_bar_manager.notch_width, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_NOTCH_OFFSET)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(bar_manager_set_notch_offset, &g_bar_manager,
                 g_bar_manager.notch_offset, lua_tointeger(L, -1));
     } else if (key_is(key, PROPERTY_HIDDEN)) {
@@ -160,11 +176,13 @@ inline static bool parse_bar_key_value_pair(lua_State *L) {
                 bar_manager_set_position(&g_bar_manager, position[0]);
         }
     } else if (key_is(key, PROPERTY_HEIGHT)) {
+        process_animation(L, &g_bar_manager);
         ANIMATE(bar_manager_set_bar_height, &g_bar_manager,
                 g_bar_manager.background.bounds.size.height,
                 lua_tointeger(L, -1));
     } else {
-        needs_refresh = parse_background_key_value_pair(&g_bar_manager.background, key, L);
+        needs_refresh =
+            parse_background_key_value_pair(&g_bar_manager.background, key, L);
     }
 
     return needs_refresh;
