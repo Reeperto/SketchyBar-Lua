@@ -1,13 +1,15 @@
 #include "bar_item.h"
+#include "alias.h"
 #include "bar_manager.h"
 #include "event.h"
-#include "lua.h"
-#include "lua/helper.h"
 #include "media.h"
 #include "misc/helpers.h"
 #include "power.h"
 #include "volume.h"
-#include <malloc/_malloc.h>
+
+#include "lua.h"
+#include "lua/helper.h"
+
 #include <stdio.h>
 #include <uuid/uuid.h>
 
