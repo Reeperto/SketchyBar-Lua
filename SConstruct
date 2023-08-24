@@ -1,9 +1,15 @@
 import shutil
+import os
 import subprocess
 
 VariantDir('bin', 'src')
 
-SetOption('num_jobs', 9)
+cores = os.cpu_count()
+
+if cores is not None:
+    SetOption('num_jobs', cores + 1)
+else:
+    SetOption('num_jobs', 1)
 
 env = Environment(
         CCFLAGS = '-std=c99 -g -Wall -Ofast -ffast-math -fvisibility=hidden -fno-common',
@@ -23,4 +29,4 @@ prefix = subprocess.run(["brew --prefix"], shell = True, capture_output = True, 
 env.ParseConfig(f"{prefix}/bin/pkg-config luajit --cflags --libs")
 
 env.Program('bin/sketchybar', Glob('bin/*.c') + Glob('bin/*.m') + Glob('bin/lua/*.c'))
-# shutil.copy2('bin/sketchybar', '/Users/reeperto/.local/bin/')
+shutil.copy2('bin/sketchybar', '/Users/reeperto/.local/bin/')
