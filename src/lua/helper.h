@@ -8,6 +8,7 @@
 #include "../misc/env_vars.h"
 
 #define LFUN(n) static int n(lua_State *L)
+#define key_is(i, o) !strcmp(i, o)
 
 void dump_lua_stack(lua_State *L);
 void process_animation(lua_State *L, struct bar_manager *bm);
