@@ -1,4 +1,5 @@
 #include "event.h"
+#include <Foundation/Foundation.h>
 
 extern void
 MRMediaRemoteRegisterForNowPlayingNotifications(dispatch_queue_t queue);
